@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>TaskON</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
+    body { display: grid; place-items: center; }
+
+    /* Bolinha em tons escuros, com o check do TaskON */
+    .bubble {
+      display: grid;
+      place-items: center;
+      width: 64px;
+      height: 64px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      background: radial-gradient(circle at 32% 28%, #1f3474, #121c3d 72%);
+      color: #8fb0ff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(126, 164, 255, .22);
+      transition: transform .15s, background .2s, color .2s;
+    }
+    .bubble svg {
+      width: 30px;
+      height: 30px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .bubble:hover { transform: scale(1.06); color: #b3c9ff; }
+    .bubble:active { transform: scale(.95); }
+    .bubble:focus-visible { outline: 2px solid #7ea4ff; outline-offset: 2px; }
+
+    /* Painel aberto: contorno azul */
+    .bubble.open {
+      background: #0f1629;
+      color: #7ea4ff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .45), inset 0 0 0 2px #3b74ff;
+    }
+  </style>
+</head>
+<body>
+  <button class="bubble" id="bubble" aria-label="TaskON" title="TaskON: abrir/fechar (botão direito: opções)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2L18.5 7.5"/></svg>
+  </button>
+  <script>
+    const bubble = document.getElementById('bubble');
+    bubble.addEventListener('click', () => window.taskon.toggle());
+    bubble.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      window.taskon.menu();
+    });
+    window.taskon.onState((open) => bubble.classList.toggle('open', open));
+  </script>
+</body>
+</html>

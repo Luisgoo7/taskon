@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0f1c">
+  <title>TaskON</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="TaskON">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="logo">
+        <span class="logo-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <span class="logo-text">Task<b>ON</b></span>
+      </div>
+      <div class="date-area">
+        <button class="today-btn" id="todayBtn" hidden>Hoje</button>
+        <button class="sync-btn" id="syncBtn" aria-label="Sincronização entre aparelhos" title="Sincronização entre aparelhos" data-status="off">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5h.5a4.25 4.25 0 0 1 0 8.5H7z"/></svg>
+          <span class="sync-dot"></span>
+        </button>
+        <label class="date-pill">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg>
+          <span id="dateText"></span>
+          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          <input type="date" id="datePicker" aria-label="Escolher dia">
+        </label>
+      </div>
+    </header>
+
+    <h1 id="greeting">Olá!</h1>
+    <p class="subtitle">Vamos organizar seu dia?</p>
+
+    <div class="reminders" id="reminders"></div>
+
+    <section class="card" id="agendaCard">
+      <div class="card-head">
+        <h2>
+          <span class="status-icon cal" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>
+          Agenda <span class="badge" id="agendaCount" hidden>0</span>
+        </h2>
+        <button class="icon-btn" id="agendaSettings" aria-label="Configurar agenda" title="Configurar agenda">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 6 .5l3-3a4 4 0 0 0-5.7-5.7l-1.6 1.6M14 10a4 4 0 0 0-6-.5l-3 3a4 4 0 0 0 5.7 5.7l1.6-1.6"/></svg>
+        </button>
+      </div>
+      <div id="agendaBody"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2><span class="status-icon ring" aria-hidden="true"></span>Pendentes <span class="badge" id="pendingCount">0</span></h2>
+      </div>
+      <div id="pendingList"></div>
+      <p class="empty" id="pendingEmpty"></p>
+    </section>
+
+    <section class="card" id="doneGroup">
+      <div class="card-head">
+        <h2><span class="status-icon filled" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4L18 8.5"/></svg></span>Concluídas <span class="badge green" id="doneCount">0</span></h2>
+        <button class="link-btn" id="clearDone">Limpar</button>
+      </div>
+      <ul class="list" id="doneList"></ul>
+    </section>
+  </main>
+
+  <button class="fab" id="fab" aria-label="Adicionar tarefa">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
+  <template id="taskTpl">
+    <li class="task">
+      <label class="check">
+        <input type="checkbox">
+        <span class="box"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </label>
+      <span class="text"></span>
+      <div class="actions">
+        <button class="icon-btn edit" aria-label="Editar tarefa">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5l4 4L8 20H4v-4L15.5 4.5z"/></svg>
+        </button>
+        <button class="icon-btn delete" aria-label="Excluir tarefa">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg>
+        </button>
+      </div>
+    </li>
+  </template>
+
+  <template id="eventTpl">
+    <li class="event">
+      <label class="check">
+        <input type="checkbox">
+        <span class="box"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </label>
+      <div class="event-body">
+        <div class="event-time"><span class="time"></span><span class="now" hidden>Agora</span></div>
+        <div class="event-title"></div>
+        <div class="event-meta">
+          <a class="join" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="12.5" height="11" rx="2.5"/><path d="M15.5 10.5l5-3v9l-5-3"/></svg>
+            <span class="join-label"></span>
+          </a>
+          <button class="icon-btn edit-link" aria-label="Definir link desta reunião" title="Definir link desta reunião" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5l4 4L8 20H4v-4L15.5 4.5z"/></svg>
+          </button>
+          <span class="place" hidden></span>
+        </div>
+      </div>
+    </li>
+  </template>
+
+  <dialog class="dialog add-dialog" id="addDialog" aria-labelledby="addTitle">
+    <form id="addForm" autocomplete="off">
+      <h3 id="addTitle">Nova tarefa</h3>
+      <input id="newTask" class="field" type="text" placeholder="O que você precisa fazer?" maxlength="200" aria-label="Nova tarefa">
+      <p class="field-label">Dia</p>
+      <div id="addDay"></div>
+      <p class="field-label">Período</p>
+      <div id="addPeriod"></div>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="addCancel">Cancelar</button>
+        <button type="submit" class="btn primary">Adicionar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog add-dialog" id="linkDialog" aria-labelledby="linkTitle">
+    <form id="linkForm" autocomplete="off">
+      <h3 id="linkTitle">Link da reunião</h3>
+      <p class="dialog-text" id="linkEvent"></p>
+      <input id="linkUrl" class="field" type="text" inputmode="url" spellcheck="false" placeholder="https://meet.google.com/..." aria-label="Link da reunião">
+      <p class="dialog-note">Vale para todas as repetições desta reunião. Fica salvo só neste navegador.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" id="linkRemove" hidden>Remover</button>
+        <button type="button" class="btn" id="linkCancel">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog add-dialog" id="syncDialog" aria-labelledby="syncTitle">
+    <form id="syncForm" autocomplete="off">
+      <h3 id="syncTitle">Sincronizar aparelhos</h3>
+      <p class="dialog-text" id="syncText"></p>
+      <input id="syncEmail" class="field" type="email" inputmode="email" autocomplete="email" placeholder="seu@email.com" aria-label="E-mail">
+      <input id="syncCode" class="field code-field" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="Código de 6 dígitos" hidden>
+      <p class="dialog-note" id="syncNote" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" id="syncLogout" hidden>Sair</button>
+        <button type="button" class="btn" id="syncClose">Fechar</button>
+        <button type="submit" class="btn primary" id="syncSubmit">Enviar código</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <dialog class="dialog" id="calDialog">
+    <form method="dialog">
+      <h3>Conectar agenda</h3>
+      <p class="dialog-text">Cole o link iCal (.ics) da sua agenda. Para mais de uma agenda, use um link por linha.</p>
+      <textarea id="calUrls" rows="4" spellcheck="false" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"></textarea>
+      <details>
+        <summary>Onde encontro esse link?</summary>
+        <p><strong>Google Agenda:</strong> no computador, abra Configurações → clique na sua agenda em "Configurações das minhas agendas" → "Integrar agenda" → copie o <em>Endereço secreto no formato iCal</em>.</p>
+        <p><strong>Outlook:</strong> Configurações → Calendário → Calendários compartilhados → Publicar um calendário → copie o link ICS.</p>
+        <p><strong>iCloud:</strong> no app Calendário, compartilhe a agenda como "Agenda pública" e copie o link.</p>
+      </details>
+      <p class="dialog-note">O link fica salvo só neste navegador. Feriados nacionais aparecem mesmo sem conectar.</p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn">Cancelar</button>
+        <button value="save" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+  <script src="sync.js"></script>
+  <script src="calendar.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

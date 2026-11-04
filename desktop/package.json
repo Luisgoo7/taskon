@@ -1,0 +1,13 @@
+{
+  "name": "taskon-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Widget de desktop do TaskON",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.2.3"
+  }
+}
