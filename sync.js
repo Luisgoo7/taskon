@@ -242,8 +242,11 @@ window.TaskSync = (() => {
       statusListeners.push(fn);
       fn(status, user);
     },
-    // O e-mail leva ao site (Site URL do Supabase); tocar no link já entra por lá
-    sendCode: (email) => client.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }),
+    // O e-mail leva ao site (Site URL do Supabase) ou, no widget, de volta ao próprio widget
+    sendCode: (email, redirectTo) =>
+      client.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: redirectTo } }),
+    // Sessão entregue pelo widget (link do e-mail aberto no navegador do PC)
+    setSession: (tokens) => client.auth.setSession(tokens),
     // Link colado: valida o token dele sem abrir o navegador
     verifyLink: (tokenHash, type) => client.auth.verifyOtp({ token_hash: tokenHash, type }),
     signOut: () => client.auth.signOut({ scope: 'local' }),

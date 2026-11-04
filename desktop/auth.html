@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaskON: conectando o widget</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body {
+      display: grid;
+      place-items: center;
+      background: #0a0f1c;
+      color: #dde3f0;
+      font: 16px/1.5 "Segoe UI", system-ui, sans-serif;
+    }
+    .card {
+      max-width: 380px;
+      margin: 16px;
+      padding: 32px;
+      border-radius: 22px;
+      background: #131a2b;
+      border: 1px solid #243049;
+      text-align: center;
+    }
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #1f3474;
+      color: #8fb0ff;
+    }
+    .mark svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    h1 { margin: 16px 0 6px; font-size: 21px; color: #f3f6fd; }
+    p { margin: 0; color: #8d97ad; }
+    .error .mark { background: rgba(248, 113, 113, .14); color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2L18.5 7.5"/></svg></span>
+    <h1 id="title">Conectando o widget...</h1>
+    <p id="text">Só um instante.</p>
+  </div>
+  <script>
+    // O link do e-mail traz a sessão no fragmento (#access_token=...); ela vai direto
+    // para o widget e some desta aba. O navegador em si não fica conectado.
+    (async () => {
+      const params = new URLSearchParams(location.hash.slice(1));
+      history.replaceState(null, '', location.pathname);
+      const show = (title, text, isError) => {
+        document.getElementById('title').textContent = title;
+        document.getElementById('text').textContent = text;
+        document.getElementById('card').classList.toggle('error', isError);
+      };
+
+      if (params.get('error')) {
+        return show('Link inválido', 'Esse link já foi usado ou expirou. Peça outro no widget do TaskON.', true);
+      }
+      try {
+        const res = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: params.get('access_token'), refresh_token: params.get('refresh_token') }),
+        });
+        if (!res.ok) throw new Error();
+        show('Widget conectado!', 'Pode fechar esta aba. O TaskON já está sincronizando.', false);
+      } catch {
+        show('Não deu certo', 'O widget do TaskON está aberto? Abra-o e peça outro link.', true);
+      }
+    })();
+  </script>
+</body>
+</html>

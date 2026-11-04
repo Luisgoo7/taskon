@@ -55,6 +55,40 @@ function startServer() {
         return icsHandler(req, out);
       }
 
+      // Volta do link do e-mail: a página /auth entrega a sessão para o painel
+      if (pathname === '/auth') {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return fs.createReadStream(path.join(__dirname, 'auth.html')).pipe(res);
+      }
+      if (pathname === '/api/session' && req.method === 'POST') {
+        // Só aceita a página /auth deste mesmo servidor
+        if (req.headers.origin !== `http://127.0.0.1:${PORT}`) {
+          res.statusCode = 403;
+          return res.end();
+        }
+        let raw = '';
+        for await (const chunk of req) raw += chunk;
+        let tokens;
+        try {
+          const { access_token, refresh_token } = JSON.parse(raw);
+          if (typeof access_token !== 'string' || typeof refresh_token !== 'string') throw new Error();
+          tokens = { access_token, refresh_token };
+        } catch {
+          res.statusCode = 400;
+          return res.end();
+        }
+        const ok = await panel.webContents.executeJavaScript(
+          `TaskSync.setSession(${JSON.stringify(tokens)}).then((r) => !r.error)`
+        );
+        if (!ok) {
+          res.statusCode = 401;
+          return res.end();
+        }
+        setOpen(true);
+        res.setHeader('Content-Type', 'application/json');
+        return res.end('{"ok":true}');
+      }
+
       const file = FILES[pathname];
       if (!file) {
         res.statusCode = 404;
