@@ -528,7 +528,6 @@ h2 {
 .add-dialog .dialog-actions { margin-top: 24px; }
 .add-dialog .dialog-note { margin-top: 10px; }
 .dialog-note.error { color: var(--danger); }
-.code-field { font-size: 24px; letter-spacing: .4em; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* "Outro dia": o input de data cobre o botão e abre o calendário */
 .date-chip { position: relative; cursor: pointer; }

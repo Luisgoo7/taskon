@@ -1,5 +1,5 @@
 // Sincronização do TaskON entre aparelhos (Supabase).
-// Login por código no e-mail. Cada dia de tarefas e cada configuração vira uma
+// Login pelo link enviado por e-mail. Cada dia de tarefas e cada configuração vira uma
 // linha no banco; a alteração mais recente vence. O app continua funcionando
 // offline pelo localStorage e envia o que ficou pendente quando a conexão volta.
 window.TaskSync = (() => {
@@ -242,8 +242,10 @@ window.TaskSync = (() => {
       statusListeners.push(fn);
       fn(status, user);
     },
+    // O e-mail leva ao site (Site URL do Supabase); tocar no link já entra por lá
     sendCode: (email) => client.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }),
-    verifyCode: (email, token) => client.auth.verifyOtp({ email, token, type: 'email' }),
+    // Link colado: valida o token dele sem abrir o navegador
+    verifyLink: (tokenHash, type) => client.auth.verifyOtp({ token_hash: tokenHash, type }),
     signOut: () => client.auth.signOut({ scope: 'local' }),
     icsEndpoint: ICS_FUNCTION,
     async accessToken() {

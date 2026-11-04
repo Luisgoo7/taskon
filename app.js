@@ -45,7 +45,7 @@
     syncForm: $('syncForm'),
     syncText: $('syncText'),
     syncEmail: $('syncEmail'),
-    syncCode: $('syncCode'),
+    syncLink: $('syncLink'),
     syncNote: $('syncNote'),
     syncLogout: $('syncLogout'),
     syncClose: $('syncClose'),
@@ -497,7 +497,9 @@
   }
 
   // ---------- Sincronização entre aparelhos ----------
-  let syncStep = 'email'; // email -> code
+  // O e-mail traz um link de acesso: tocar nele abre o site já logado; no widget,
+  // o link é colado aqui e validado sem precisar abrir o navegador.
+  let syncStep = 'email'; // email -> link
 
   function syncMessage(text, isError = false) {
     els.syncNote.hidden = !text;
@@ -508,23 +510,23 @@
   function renderSyncDialog() {
     const user = TaskSync.user;
     const unavailable = TaskSync.status === 'unavailable';
-    els.syncEmail.hidden = Boolean(user) || unavailable || syncStep === 'code';
-    els.syncCode.hidden = Boolean(user) || unavailable || syncStep !== 'code';
+    els.syncEmail.hidden = Boolean(user) || unavailable || syncStep === 'link';
+    els.syncLink.hidden = Boolean(user) || unavailable || syncStep !== 'link';
     els.syncSubmit.hidden = Boolean(user) || unavailable;
-    els.syncSubmit.textContent = syncStep === 'code' ? 'Entrar' : 'Enviar código';
+    els.syncSubmit.textContent = syncStep === 'link' ? 'Entrar' : 'Enviar link';
     els.syncLogout.hidden = !user;
     els.syncText.textContent = user
       ? `Conectado como ${user.email}. Tudo o que você fizer aqui aparece no computador, no celular e no site.`
       : unavailable
         ? 'Sem conexão com o serviço de sincronização. Verifique a internet e abra o TaskON de novo.'
-        : syncStep === 'code'
-          ? `Enviamos um código de 6 dígitos para ${els.syncEmail.value.trim()}. Pode levar um minutinho para chegar.`
+        : syncStep === 'link'
+          ? `Enviamos um e-mail para ${els.syncEmail.value.trim()} com o link "Sign in". No celular, é só tocar nele. Aqui: clique com o botão direito em "Sign in", copie o endereço do link e cole abaixo (sem abrir).`
           : 'Entre com seu e-mail para ver as mesmas tarefas e a mesma agenda no computador, no celular e no site.';
   }
 
   function openSyncDialog() {
     syncStep = 'email';
-    els.syncCode.value = '';
+    els.syncLink.value = '';
     syncMessage('');
     renderSyncDialog();
     els.syncDialog.showModal();
@@ -539,17 +541,25 @@
       if (error) {
         return syncMessage(error.status === 429
           ? 'Muitos pedidos de código. Espere um pouco e tente de novo.'
-          : `Não foi possível enviar o código: ${error.message}`, true);
+          : `Não foi possível enviar o e-mail: ${error.message}`, true);
       }
-      syncStep = 'code';
+      syncStep = 'link';
       syncMessage('');
       renderSyncDialog();
-      els.syncCode.focus();
+      els.syncLink.focus();
     } else {
-      const code = els.syncCode.value.replace(/\D/g, '');
-      if (code.length !== 6) return syncMessage('O código tem 6 dígitos.', true);
-      const { error } = await TaskSync.verifyCode(email, code);
-      if (error) return syncMessage('Código inválido ou expirado. Confira o e-mail ou peça outro código.', true);
+      let link;
+      try {
+        link = new URL(els.syncLink.value.trim());
+      } catch {
+        return syncMessage('Cole o link completo do e-mail (começa com https://).', true);
+      }
+      const tokenHash = link.searchParams.get('token');
+      if (!tokenHash) return syncMessage('Esse não parece ser o link do e-mail do TaskON.', true);
+      const { error } = await TaskSync.verifyLink(tokenHash, link.searchParams.get('type') || 'magiclink');
+      if (error) {
+        return syncMessage('Link inválido ou já usado (cada link funciona uma vez). Peça outro e cole sem abrir.', true);
+      }
       els.syncDialog.close();
       showToast('Sincronização ativada');
     }
