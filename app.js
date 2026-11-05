@@ -418,10 +418,13 @@
     checkbox.setAttribute('aria-label', `${done ? 'Desmarcar' : 'Marcar como cumprido'}: ${ev.title}`);
     checkbox.addEventListener('change', () => toggleEvent(ev.id));
 
-    let time = fmtTime(ev.start);
-    if (ev.start < dayStart) time = `Até ${fmtTime(ev.end)}`;
-    else if (ev.end > ev.start) time += ` – ${fmtTime(ev.end)}`;
-    li.querySelector('.time').textContent = time;
+    // Início e fim separados: no celular ficam um embaixo do outro
+    const [start, end] = ev.start < dayStart
+      ? ['Até', fmtTime(ev.end)]
+      : [fmtTime(ev.start), ev.end > ev.start ? fmtTime(ev.end) : ''];
+    li.querySelector('.time-start').textContent = start;
+    li.querySelector('.time-end').textContent = end;
+    li.querySelector('.time-end').hidden = !end;
     li.querySelector('.now').hidden = done || !(ev.start <= now && now < ev.end);
     li.querySelector('.event-title').textContent = ev.title;
 
@@ -433,6 +436,8 @@
     if (link) {
       join.href = link.url;
       join.querySelector('.join-label').textContent = link.provider ? `Entrar no ${link.provider}` : 'Abrir link';
+      // Versão curta para o celular ("Meet", "Zoom", "Teams"...)
+      join.querySelector('.join-short').textContent = link.provider ? link.provider.replace('Google ', '') : 'Abrir';
     }
     // Link colocado à mão continua editável pelo lápis
     const editLink = li.querySelector('.edit-link');
@@ -704,7 +709,7 @@
     const checkbox = li.querySelector('input[type="checkbox"]');
     const text = li.querySelector('.text');
 
-    li.classList.toggle('done', task.done);
+    li.classList.toggle('done', Boolean(task.done));
     li.classList.toggle('enter', task.id === justAddedId);
     checkbox.checked = task.done;
     checkbox.setAttribute('aria-label', task.done ? `Desmarcar "${task.text}"` : `Concluir "${task.text}"`);

@@ -449,6 +449,8 @@ h2 {
 .join:hover { background: var(--blue-hover); }
 .join:active { transform: scale(.97); }
 .join svg { width: 18px; height: 18px; }
+.join-short { display: none; }
+.time-end:not([hidden])::before { content: " – "; }
 .event-meta .edit-link { width: 32px; height: 32px; margin-left: -8px; }
 .event-meta .edit-link svg { width: 17px; height: 17px; }
 .place { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
@@ -658,4 +660,90 @@ h2 {
   .sync-dot { right: 4px; bottom: 5px; width: 8px; height: 8px; }
   .add-dialog .chip { padding: 10px 4px; gap: 5px; font-size: 14px; }
   .add-dialog .chip svg { width: 16px; height: 16px; }
+}
+
+/* Modo compacto (celular e widget): tudo menor para caber na tela sem rolar */
+@media (max-width: 680px) {
+  .app { padding: 14px 14px 76px; }
+  .top { gap: 8px; }
+  .logo { gap: 8px; }
+  .logo-mark { width: 30px; height: 30px; border-radius: 8px; }
+  .logo-mark svg { width: 18px; height: 18px; }
+  .logo-text { font-size: 20px; }
+  .date-area { gap: 6px; }
+  .date-pill { padding: 6px 10px; gap: 6px; font-size: 13px; }
+  .date-pill svg { width: 15px; height: 15px; }
+  .sync-btn { width: 32px; height: 32px; }
+  .sync-btn svg { width: 16px; height: 16px; }
+  .sync-dot { right: 4px; bottom: 5px; width: 8px; height: 8px; }
+
+  h1 { margin-top: 14px; font-size: 26px; }
+  .subtitle { margin-top: 2px; font-size: 14px; }
+
+  .reminders { margin-top: 12px; gap: 8px; }
+  .reminder { padding: 8px 12px; gap: 10px; border-radius: 14px; font-size: 14px; }
+  .reminder-icon { width: 30px; height: 30px; }
+  .reminder-icon svg { width: 16px; height: 16px; }
+  .reminder-kind { font-size: 10.5px; }
+
+  .card, .reminders + .card { margin-top: 12px; padding: 12px 14px 6px; border-radius: 16px; }
+  .card + .card { margin-top: 10px; }
+  .card-head { margin-bottom: 2px; }
+  h2 { font-size: 16px; gap: 10px; }
+  .status-icon { width: 22px; height: 22px; }
+  .status-icon.ring { border-width: 2.5px; }
+  .status-icon.filled svg, .status-icon.cal svg { width: 14px; height: 14px; }
+  .badge { min-width: 24px; height: 24px; padding: 0 7px; font-size: 13px; }
+  .link-btn { font-size: 12.5px; padding: 4px 8px; }
+  .empty, .agenda-msg, .agenda-cta { font-size: 14px; padding: 4px 0 8px; }
+  .agenda-cta .btn { padding: 7px 14px; font-size: 13.5px; }
+
+  .period + .period { margin-top: 2px; }
+  .period-title { margin: 6px 0 4px; font-size: 11px; gap: 6px; }
+  .period-title svg { width: 14px; height: 14px; }
+
+  .task { min-height: 36px; padding: 1px 0; gap: 12px; font-size: 14.5px; }
+  .check { margin-left: 2px; }
+  .box { width: 22px; height: 22px; border-radius: 6px; }
+  .box svg { width: 14px; height: 14px; }
+  .icon-btn { width: 30px; height: 30px; border-radius: 8px; }
+  .icon-btn svg { width: 17px; height: 17px; }
+  .actions { gap: 0; }
+
+  /* Reunião em uma linha: horário | título (e local) | botão curto */
+  .events { gap: 6px; padding-bottom: 4px; }
+  .event { align-items: center; gap: 10px; padding: 7px 10px 7px 12px; border-radius: 12px; }
+  .event::before { top: 8px; bottom: 8px; width: 3px; }
+  .event .check { margin-top: 0; }
+  .event-body {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: 10px;
+  }
+  .event-time {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    font-size: 12px;
+    line-height: 1.15;
+  }
+  .event-time .time { display: flex; flex-direction: column; }
+  .time-end { font-weight: 500; opacity: .75; }
+  .time-end:not([hidden])::before { content: none; }
+  .now { padding: 1px 5px; font-size: 9px; }
+  .event-title { grid-column: 2; grid-row: 1; margin: 0; font-size: 14px; line-height: 1.3; }
+  .event-meta { display: contents; }
+  .place { grid-column: 2; grid-row: 2; font-size: 12px; }
+  .place svg { width: 13px; height: 13px; }
+  .join { grid-column: 3; grid-row: 1 / span 2; padding: 5px 10px 5px 8px; font-size: 12px; gap: 5px; box-shadow: none; }
+  .join svg { width: 14px; height: 14px; }
+  .join-label { display: none; }
+  .join-short { display: inline; }
+  .event-meta .edit-link { grid-column: 4; grid-row: 1 / span 2; width: 28px; height: 28px; margin: 0; }
+
+  .fab { width: 52px; height: 52px; bottom: 18px; right: 16px; }
+  .fab svg { width: 26px; height: 26px; }
 }

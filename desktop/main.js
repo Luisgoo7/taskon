@@ -13,7 +13,7 @@ const MARGIN = 14; // distância da borda direita da tela
 const TOP = 26; // distância do topo da tela
 const PANEL_WIDTH = 340;
 const PANEL_MAX_HEIGHT = 600;
-const PANEL_ZOOM = 0.85; // deixa textos e botões do painel menores
+const PANEL_ZOOM = 0.92; // ajuste fino do tamanho (o layout compacto já reduz bastante)
 
 const FILES = {
   '/': ['index.html', 'text/html; charset=utf-8'],
