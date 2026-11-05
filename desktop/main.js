@@ -195,6 +195,15 @@ const toggle = () => setOpen(!panel.isVisible());
 // No modo de desenvolvimento o Windows precisa saber qual pasta abrir
 const loginOptions = app.isPackaged ? {} : { path: process.execPath, args: [app.getAppPath()] };
 
+// Inicia com o Windows por padrão; só deixa de iniciar se a opção for desmarcada no menu
+const autostartOffFile = () => path.join(app.getPath('userData'), 'autostart-off');
+
+function setAutostart(on) {
+  app.setLoginItemSettings({ ...loginOptions, openAtLogin: on });
+  if (on) fs.rmSync(autostartOffFile(), { force: true });
+  else fs.writeFileSync(autostartOffFile(), '');
+}
+
 function showMenu() {
   Menu.buildFromTemplate([
     { label: panel.isVisible() ? 'Fechar TaskON' : 'Abrir TaskON', click: toggle },
@@ -204,7 +213,7 @@ function showMenu() {
       label: 'Iniciar com o Windows',
       type: 'checkbox',
       checked: app.getLoginItemSettings(loginOptions).openAtLogin,
-      click: (item) => app.setLoginItemSettings({ ...loginOptions, openAtLogin: item.checked }),
+      click: (item) => setAutostart(item.checked),
     },
     { type: 'separator' },
     { label: 'Sair do TaskON', click: () => app.quit() },
@@ -226,6 +235,7 @@ if (!app.requestSingleInstanceLock()) {
       dialog.showErrorBox('TaskON', `Não foi possível iniciar (porta ${PORT} ocupada?).\n\n${error.message}`);
       return app.quit();
     }
+    if (!fs.existsSync(autostartOffFile())) setAutostart(true);
     ipcMain.on('toggle', toggle);
     ipcMain.on('menu', showMenu);
     createWindows();
