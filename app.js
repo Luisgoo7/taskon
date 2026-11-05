@@ -353,6 +353,8 @@
   }
 
   // ---------- Agenda ----------
+  // Usado nas reuniões que não têm link na agenda nem um link próprio
+  const DEFAULT_MEETING_LINK = 'https://meet.google.com/home?hs=197&authuser=1';
   const fmtTime = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   async function syncCalendar(force = false) {
@@ -428,9 +430,11 @@
     li.querySelector('.now').hidden = done || !(ev.start <= now && now < ev.end);
     li.querySelector('.event-title').textContent = ev.title;
 
-    // Botão só aparece quando a reunião tem link (da agenda ou colocado à mão)
+    // Link da agenda → link colocado à mão → Meet padrão (só para reuniões; aulas ficam sem botão)
     const custom = eventLinks[ev.uid];
-    const link = ev.link || (custom && { url: custom, provider: TaskCalendar.providerOf(custom) });
+    const link = ev.link
+      || (custom && { url: custom, provider: TaskCalendar.providerOf(custom) })
+      || (ev.meeting && { url: DEFAULT_MEETING_LINK, provider: 'Google Meet' });
     const join = li.querySelector('.join');
     join.hidden = !link;
     if (link) {
@@ -439,9 +443,9 @@
       // Versão curta para o celular ("Meet", "Zoom", "Teams"...)
       join.querySelector('.join-short').textContent = link.provider ? link.provider.replace('Google ', '') : 'Abrir';
     }
-    // Link colocado à mão continua editável pelo lápis
+    // Sem link próprio na agenda: o lápis permite trocar pelo link certo da reunião
     const editLink = li.querySelector('.edit-link');
-    editLink.hidden = !(custom && !ev.link);
+    editLink.hidden = Boolean(ev.link) || !link;
     editLink.addEventListener('click', () => openLinkDialog(ev));
 
     const place = li.querySelector('.place');

@@ -185,7 +185,15 @@ window.TaskCalendar = (() => {
             continue;
           }
           const location = String(occ.item.location || '').trim();
+          // Reunião = tem participantes, organizador ou descrição; aula/evento simples = só título e horário
+          const meeting = Boolean(
+            comp.getFirstPropertyValue('attendee') ||
+            comp.getFirstPropertyValue('organizer') ||
+            String(occ.item.description || '').trim() ||
+            /reuni|roda de conversa|capacita|supervis|alinhamento|\bcall\b|\bmeet/i.test(title)
+          );
           events.push({
+            meeting,
             id: `${occ.item.uid}|${occ.start.toISOString()}`,
             uid: occ.item.uid,
             title,
