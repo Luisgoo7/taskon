@@ -153,11 +153,13 @@
       <p class="dialog-text" id="syncText"></p>
       <input id="syncEmail" class="field" type="email" inputmode="email" autocomplete="email" placeholder="seu@email.com" aria-label="E-mail">
       <input id="syncLink" class="field" type="text" inputmode="url" spellcheck="false" placeholder="Cole aqui o link do e-mail" aria-label="Link de acesso do e-mail" hidden>
+      <button type="button" class="btn primary wide" id="syncPair" hidden>Conectar celular (QR code)</button>
+      <div class="qr-box" id="syncQr" hidden><img id="syncQrImg" alt="QR code para conectar o celular"></div>
       <p class="dialog-note" id="syncNote" hidden></p>
       <div class="dialog-actions">
         <button type="button" class="btn danger" id="syncLogout" hidden>Sair</button>
         <button type="button" class="btn" id="syncClose">Fechar</button>
-        <button type="submit" class="btn primary" id="syncSubmit">Enviar código</button>
+        <button type="submit" class="btn primary" id="syncSubmit">Enviar link</button>
       </div>
     </form>
   </dialog>

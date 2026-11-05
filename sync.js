@@ -251,6 +251,17 @@ window.TaskSync = (() => {
     verifyLink: (tokenHash, type) => client.auth.verifyOtp({ token_hash: tokenHash, type }),
     signOut: () => client.auth.signOut({ scope: 'local' }),
     icsEndpoint: ICS_FUNCTION,
+    // Link de acesso de uso único para conectar outro aparelho sem e-mail (vira QR code)
+    async deviceLink() {
+      const token = (await client.auth.getSession()).data.session?.access_token;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/device-link`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_KEY },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.link) throw new Error(data.error || 'Não foi possível gerar o código');
+      return data.link;
+    },
     async accessToken() {
       return client ? (await client.auth.getSession()).data.session?.access_token : null;
     },

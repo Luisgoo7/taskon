@@ -50,6 +50,9 @@
     syncLogout: $('syncLogout'),
     syncClose: $('syncClose'),
     syncSubmit: $('syncSubmit'),
+    syncPair: $('syncPair'),
+    syncQr: $('syncQr'),
+    syncQrImg: $('syncQrImg'),
     fab: $('fab'),
     pendingList: $('pendingList'),
     pendingCount: $('pendingCount'),
@@ -518,6 +521,8 @@
     els.syncSubmit.hidden = Boolean(user) || unavailable || (syncStep === 'link' && IN_WIDGET);
     els.syncSubmit.textContent = syncStep === 'link' ? 'Entrar' : 'Enviar link';
     els.syncLogout.hidden = !user;
+    els.syncPair.hidden = !user;
+    if (!user) els.syncQr.hidden = true;
     els.syncText.textContent = user
       ? `Conectado como ${user.email}. Tudo o que você fizer aqui aparece no computador, no celular e no site.`
       : unavailable
@@ -532,6 +537,7 @@
   function openSyncDialog() {
     syncStep = 'email';
     els.syncLink.value = '';
+    els.syncQr.hidden = true;
     syncMessage('');
     renderSyncDialog();
     els.syncDialog.showModal();
@@ -545,7 +551,7 @@
       const { error } = await TaskSync.sendCode(email, IN_WIDGET ? `${location.origin}/auth` : undefined);
       if (error) {
         return syncMessage(error.status === 429
-          ? 'Muitos pedidos de código. Espere um pouco e tente de novo.'
+          ? 'Limite de e-mails atingido. Espere um pouco ou, no TaskON do PC já conectado, use "Conectar celular" e leia o QR code.'
           : `Não foi possível enviar o e-mail: ${error.message}`, true);
       }
       syncStep = 'link';
@@ -567,6 +573,36 @@
       }
       els.syncDialog.close();
       showToast('Sincronização ativada');
+    }
+  }
+
+  // Conectar outro aparelho: QR code com um link de acesso de uso único
+  function loadQrLibrary() {
+    if (window.qrcode) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.append(script);
+    });
+  }
+
+  async function showPairingQr() {
+    els.syncPair.disabled = true;
+    syncMessage('Gerando o código...');
+    try {
+      const [link] = await Promise.all([TaskSync.deviceLink(), loadQrLibrary()]);
+      const qr = window.qrcode(0, 'M');
+      qr.addData(link);
+      qr.make();
+      els.syncQrImg.src = qr.createDataURL(6, 0);
+      els.syncQr.hidden = false;
+      syncMessage('Aponte a câmera do celular para o código e toque no link que aparecer. Ele funciona uma vez só e vale por 1 hora.');
+    } catch (error) {
+      syncMessage(`Não foi possível gerar o código: ${error.message}`, true);
+    } finally {
+      els.syncPair.disabled = false;
     }
   }
 
@@ -662,6 +698,7 @@
 
   els.syncBtn.addEventListener('click', openSyncDialog);
   els.syncClose.addEventListener('click', () => els.syncDialog.close());
+  els.syncPair.addEventListener('click', showPairingQr);
   els.syncForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     els.syncSubmit.disabled = true;

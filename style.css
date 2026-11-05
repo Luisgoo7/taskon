@@ -528,6 +528,16 @@ h2 {
 .add-dialog .dialog-actions { margin-top: 24px; }
 .add-dialog .dialog-note { margin-top: 10px; }
 .dialog-note.error { color: var(--danger); }
+.btn.wide { width: 100%; margin-top: 18px; }
+.qr-box {
+  display: grid;
+  place-items: center;
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fff;
+}
+.qr-box img { width: 220px; height: 220px; image-rendering: pixelated; }
 
 /* "Outro dia": o input de data cobre o botão e abre o calendário */
 .date-chip { position: relative; cursor: pointer; }
