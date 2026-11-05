@@ -51,6 +51,11 @@
     syncClose: $('syncClose'),
     syncSubmit: $('syncSubmit'),
     syncPair: $('syncPair'),
+    scanBtn: $('scanBtn'),
+    scanDialog: $('scanDialog'),
+    scanVideo: $('scanVideo'),
+    scanNote: $('scanNote'),
+    scanEmail: $('scanEmail'),
     syncQr: $('syncQr'),
     syncQrImg: $('syncQrImg'),
     fab: $('fab'),
@@ -348,8 +353,6 @@
   }
 
   // ---------- Agenda ----------
-  // Usado nas reuniões que não têm link na agenda nem um link próprio
-  const DEFAULT_MEETING_LINK = 'https://meet.google.com/home?hs=197&authuser=1';
   const fmtTime = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   async function syncCalendar(force = false) {
@@ -422,17 +425,18 @@
     li.querySelector('.now').hidden = done || !(ev.start <= now && now < ev.end);
     li.querySelector('.event-title').textContent = ev.title;
 
-    // Link da agenda → link que você adicionou à mão → link padrão do Meet
+    // Botão só aparece quando a reunião tem link (da agenda ou colocado à mão)
     const custom = eventLinks[ev.uid];
     const link = ev.link || (custom && { url: custom, provider: TaskCalendar.providerOf(custom) });
     const join = li.querySelector('.join');
-    join.href = link ? link.url : DEFAULT_MEETING_LINK;
-    join.querySelector('.join-label').textContent = !link
-      ? 'Abrir Google Meet'
-      : link.provider ? `Entrar no ${link.provider}` : 'Abrir link';
-    // Sem link na agenda: o lápis permite colocar um link específico
+    join.hidden = !link;
+    if (link) {
+      join.href = link.url;
+      join.querySelector('.join-label').textContent = link.provider ? `Entrar no ${link.provider}` : 'Abrir link';
+    }
+    // Link colocado à mão continua editável pelo lápis
     const editLink = li.querySelector('.edit-link');
-    editLink.hidden = Boolean(ev.link);
+    editLink.hidden = !(custom && !ev.link);
     editLink.addEventListener('click', () => openLinkDialog(ev));
 
     const place = li.querySelector('.place');
@@ -441,6 +445,7 @@
       place.append(ev.place);
       place.hidden = false;
     }
+    li.querySelector('.event-meta').hidden = !link && !ev.place;
     return li;
   }
 
@@ -576,23 +581,27 @@
     }
   }
 
-  // Conectar outro aparelho: QR code com um link de acesso de uso único
-  function loadQrLibrary() {
-    if (window.qrcode) return Promise.resolve();
+  // Bibliotecas de QR code só carregam quando forem usadas
+  function loadScript(src, globalName) {
+    if (window[globalName]) return Promise.resolve();
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+      script.src = src;
       script.onload = resolve;
-      script.onerror = reject;
+      script.onerror = () => reject(new Error('sem conexão'));
       document.head.append(script);
     });
   }
 
+  // Conectar outro aparelho: QR code com um link de acesso de uso único
   async function showPairingQr() {
     els.syncPair.disabled = true;
     syncMessage('Gerando o código...');
     try {
-      const [link] = await Promise.all([TaskSync.deviceLink(), loadQrLibrary()]);
+      const [link] = await Promise.all([
+        TaskSync.deviceLink(),
+        loadScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js', 'qrcode'),
+      ]);
       const qr = window.qrcode(0, 'M');
       qr.addData(link);
       qr.make();
@@ -604,6 +613,89 @@
     } finally {
       els.syncPair.disabled = false;
     }
+  }
+
+  // ---------- Ler o QR code dentro do app (celular) ----------
+  // O app da Tela de Início do iPhone não compartilha login com o Safari,
+  // então o QR code precisa ser lido aqui dentro, e não pela câmera do sistema.
+  const TOUCH = matchMedia('(hover: none)').matches;
+  const scanCanvas = document.createElement('canvas');
+  let scanStream = null;
+  let scanFrame = 0;
+
+  function scanMessage(text, isError = false) {
+    els.scanNote.hidden = !text;
+    els.scanNote.textContent = text || '';
+    els.scanNote.classList.toggle('error', isError);
+  }
+
+  function openScanner() {
+    scanMessage('');
+    els.scanDialog.showModal();
+    startCamera();
+  }
+
+  async function startCamera() {
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js', 'jsQR');
+      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      els.scanVideo.srcObject = scanStream;
+      await els.scanVideo.play();
+      scanLoop();
+    } catch (error) {
+      scanMessage(error.name === 'NotAllowedError'
+        ? 'Permita o acesso à câmera para ler o código (Ajustes do celular, se precisar).'
+        : `Não foi possível abrir a câmera: ${error.message}`, true);
+    }
+  }
+
+  function stopCamera() {
+    cancelAnimationFrame(scanFrame);
+    scanStream?.getTracks().forEach((track) => track.stop());
+    scanStream = null;
+    els.scanVideo.srcObject = null;
+  }
+
+  function scanLoop() {
+    if (!scanStream) return;
+    const video = els.scanVideo;
+    if (video.readyState >= 2 && video.videoWidth) {
+      const scale = Math.min(1, 640 / video.videoWidth);
+      scanCanvas.width = Math.round(video.videoWidth * scale);
+      scanCanvas.height = Math.round(video.videoHeight * scale);
+      const ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+      const image = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+      const code = window.jsQR(image.data, image.width, image.height, { inversionAttempts: 'dontInvert' });
+      if (code?.data) return handleScanned(code.data);
+    }
+    scanFrame = requestAnimationFrame(scanLoop);
+  }
+
+  async function handleScanned(text) {
+    let tokenHash = null;
+    let type = 'magiclink';
+    try {
+      const url = new URL(text);
+      tokenHash = url.searchParams.get('token');
+      type = url.searchParams.get('type') || type;
+    } catch {
+      /* não é um link */
+    }
+    if (!tokenHash) {
+      scanMessage('Esse QR code não é do TaskON. Aponte para o código do widget.', true);
+      scanFrame = requestAnimationFrame(scanLoop);
+      return;
+    }
+    stopCamera();
+    scanMessage('Conectando...');
+    const { error } = await TaskSync.verifyLink(tokenHash, type);
+    if (error) {
+      scanMessage('Esse código já foi usado ou expirou. Gere outro no PC e leia de novo.', true);
+      return startCamera();
+    }
+    els.scanDialog.close();
+    showToast('Aparelho conectado');
   }
 
   // ---------- Renderização ----------
@@ -699,6 +791,12 @@
   els.syncBtn.addEventListener('click', openSyncDialog);
   els.syncClose.addEventListener('click', () => els.syncDialog.close());
   els.syncPair.addEventListener('click', showPairingQr);
+  els.scanBtn.addEventListener('click', openScanner);
+  els.scanDialog.addEventListener('close', stopCamera);
+  els.scanEmail.addEventListener('click', () => {
+    els.scanDialog.close();
+    openSyncDialog();
+  });
   els.syncForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     els.syncSubmit.disabled = true;
@@ -727,6 +825,10 @@
       showToast('Sincronização ativada');
     }
     syncedUserId = user?.id ?? null;
+    // Celular desconectado: a câmera aparece no lugar da nuvem
+    const showScan = !user && TOUCH && !IN_WIDGET && TaskSync.status !== 'unavailable';
+    els.scanBtn.hidden = !showScan;
+    els.syncBtn.hidden = showScan;
     els.syncBtn.dataset.status = user ? status : 'off';
     els.syncBtn.title = user
       ? { ok: 'Sincronizado', syncing: 'Sincronizando...', error: 'Sem conexão: as mudanças serão enviadas depois' }[status] || 'Sincronização'
@@ -747,7 +849,7 @@
   });
 
   // Clicar fora do card fecha as janelas
-  for (const dialog of [els.addDialog, els.calDialog, els.linkDialog, els.syncDialog]) {
+  for (const dialog of [els.addDialog, els.calDialog, els.linkDialog, els.syncDialog, els.scanDialog]) {
     dialog.addEventListener('click', (e) => {
       if (e.target === dialog) dialog.close();
     });

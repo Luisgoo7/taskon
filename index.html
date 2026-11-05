@@ -25,6 +25,9 @@
       </div>
       <div class="date-area">
         <button class="today-btn" id="todayBtn" hidden>Hoje</button>
+        <button class="sync-btn" id="scanBtn" aria-label="Ler QR code para conectar este aparelho" title="Ler QR code do PC" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3.2L9 6h6l1.8 2.5H20V19H4z"/><circle cx="12" cy="13.5" r="3.3"/></svg>
+        </button>
         <button class="sync-btn" id="syncBtn" aria-label="Sincronização entre aparelhos" title="Sincronização entre aparelhos" data-status="off">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5h.5a4.25 4.25 0 0 1 0 8.5H7z"/></svg>
           <span class="sync-dot"></span>
@@ -160,6 +163,19 @@
         <button type="button" class="btn danger" id="syncLogout" hidden>Sair</button>
         <button type="button" class="btn" id="syncClose">Fechar</button>
         <button type="submit" class="btn primary" id="syncSubmit">Enviar link</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog add-dialog" id="scanDialog" aria-labelledby="scanTitle">
+    <form method="dialog">
+      <h3 id="scanTitle">Conectar este aparelho</h3>
+      <p class="dialog-text">No widget do PC: nuvem → "Conectar celular (QR code)". Depois aponte a câmera para o código.</p>
+      <div class="scan-view"><video id="scanVideo" playsinline muted></video></div>
+      <p class="dialog-note" id="scanNote" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="scanEmail">Entrar por e-mail</button>
+        <button value="cancel" class="btn">Cancelar</button>
       </div>
     </form>
   </dialog>
