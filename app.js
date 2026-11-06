@@ -725,7 +725,8 @@
       li.dataset.id = task.id;
       li.querySelector('.edit').addEventListener('click', () => startEdit(li, task));
       text.addEventListener('dblclick', () => startEdit(li, task));
-      li.addEventListener('pointerdown', (e) => pressTask(e, li));
+      li.addEventListener('pointerdown', (e) => e.pointerType !== 'touch' && pressTask(e, li, e));
+      li.addEventListener('touchstart', (e) => e.touches.length === 1 && pressTask(e, li, e.touches[0]), { passive: true });
     }
     return li;
   }
@@ -736,10 +737,12 @@
   let press = null; // toque/clique em andamento, antes de virar arraste
   let drag = null; // arraste em andamento
 
-  function pressTask(e, li) {
-    if (drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  // No celular usa os eventos de toque (no iPhone os de ponteiro são cancelados ao segurar)
+  function pressTask(e, li, point) {
+    if (drag || (e.type === 'pointerdown' && e.button !== 0)) return;
     if (e.target.closest('.check, .actions, input, button') || li.querySelector('.edit-input')) return;
-    press = { li, id: e.pointerId, x: e.clientX, y: e.clientY, touch: e.pointerType !== 'mouse' };
+    cancelPress();
+    press = { li, x: point.clientX, y: point.clientY, touch: e.type === 'touchstart' };
     press.timer = setTimeout(() => startDrag(press.x, press.y), HOLD_MS);
   }
 
@@ -846,24 +849,32 @@
     render();
   }
 
+  // Mouse
   document.addEventListener('pointermove', (e) => {
-    if (drag) {
-      e.preventDefault();
-      return moveDrag(e.clientX, e.clientY);
-    }
-    if (!press || e.pointerId !== press.id) return;
-    const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
-    if (press.touch) {
-      if (moved > 8) cancelPress(); // dedo andou antes de segurar: é rolagem
-    } else if (moved > 5) {
+    if (e.pointerType === 'touch') return;
+    if (drag) return moveDrag(e.clientX, e.clientY);
+    if (!press || press.touch) return;
+    if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > 5) {
       clearTimeout(press.timer);
       startDrag(e.clientX, e.clientY);
     }
   });
-  document.addEventListener('pointerup', () => (drag ? endDrag(true) : cancelPress()));
-  document.addEventListener('pointercancel', () => (drag ? endDrag(false) : cancelPress()));
-  // Enquanto arrasta no celular, o dedo move a tarefa em vez de rolar a tela
-  document.addEventListener('touchmove', (e) => drag && e.preventDefault(), { passive: false });
+  document.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'touch') return;
+    drag ? endDrag(true) : cancelPress();
+  });
+
+  // Toque: enquanto arrasta, o dedo move a tarefa em vez de rolar a tela
+  document.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    if (drag) {
+      e.preventDefault();
+      return moveDrag(t.clientX, t.clientY);
+    }
+    if (press?.touch && Math.hypot(t.clientX - press.x, t.clientY - press.y) > 8) cancelPress(); // é rolagem
+  }, { passive: false });
+  document.addEventListener('touchend', () => (drag ? endDrag(true) : cancelPress()));
+  document.addEventListener('touchcancel', () => (drag ? endDrag(false) : cancelPress()));
   document.addEventListener('contextmenu', (e) => (press || drag) && e.preventDefault());
   document.addEventListener('keydown', (e) => {
     if (drag && e.key === 'Escape') endDrag(false);
@@ -879,6 +890,8 @@
   }
 
   function render() {
+    if (drag) return; // redesenha ao soltar
+    cancelPress();
     const list = tasks();
     const pending = list.filter((t) => !t.done);
     const done = list.filter((t) => t.done).sort((a, b) => b.doneAt - a.doneAt);
