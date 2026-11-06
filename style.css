@@ -747,3 +747,37 @@ h2 {
   .fab { width: 52px; height: 52px; bottom: 18px; right: 16px; }
   .fab svg { width: 26px; height: 26px; }
 }
+
+/* Arrastar tarefas entre os períodos */
+#pendingList .task { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#pendingList .task .text { cursor: grab; }
+body.dragging, body.dragging * { cursor: grabbing !important; }
+body.dragging .task .actions { visibility: hidden; }
+.task.drag-src { opacity: .35; }
+.drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  pointer-events: none;
+  padding-left: 8px;
+  padding-right: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+  list-style: none;
+  scale: 1.03;
+}
+.drag-ghost .actions { display: none; }
+#pendingList .period { border-radius: 12px; transition: background .12s; }
+#pendingList .period.drop-target { background: var(--blue-soft); }
+.period.drop-empty .list { min-height: 40px; border: 1.5px dashed var(--line-strong); border-radius: 10px; }
+.period.drop-empty .list:empty::after {
+  content: "Solte aqui";
+  display: grid;
+  place-items: center;
+  height: 40px;
+  font-size: 13px;
+  color: var(--faint);
+}

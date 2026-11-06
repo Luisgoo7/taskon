@@ -722,11 +722,152 @@
     checkbox.addEventListener('change', () => toggleTask(task.id));
     li.querySelector('.delete').addEventListener('click', () => deleteTask(task.id));
     if (!task.done) {
+      li.dataset.id = task.id;
       li.querySelector('.edit').addEventListener('click', () => startEdit(li, task));
       text.addEventListener('dblclick', () => startEdit(li, task));
+      li.addEventListener('pointerdown', (e) => pressTask(e, li));
     }
     return li;
   }
+
+  // ---------- Arrastar tarefas entre os períodos ----------
+  // Segurar a tarefa (ou, com o mouse, só puxar) e soltar em Manhã, Tarde ou Noite.
+  const HOLD_MS = 350;
+  let press = null; // toque/clique em andamento, antes de virar arraste
+  let drag = null; // arraste em andamento
+
+  function pressTask(e, li) {
+    if (drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (e.target.closest('.check, .actions, input, button') || li.querySelector('.edit-input')) return;
+    press = { li, id: e.pointerId, x: e.clientX, y: e.clientY, touch: e.pointerType !== 'mouse' };
+    press.timer = setTimeout(() => startDrag(press.x, press.y), HOLD_MS);
+  }
+
+  function cancelPress() {
+    if (press) clearTimeout(press.timer);
+    press = null;
+  }
+
+  // Mostra todos os períodos (mesmo vazios) como lugares onde soltar
+  function showDropZones() {
+    const sections = new Map([...els.pendingList.querySelectorAll('.period')].map((s) => [s.dataset.period, s]));
+    const ordered = PERIODS.map((p) => {
+      if (sections.has(p.id)) return sections.get(p.id);
+      const ul = document.createElement('ul');
+      ul.className = 'list';
+      const section = periodSection(p, ul);
+      section.dataset.period = p.id;
+      section.classList.add('drop-empty');
+      return section;
+    });
+    if (sections.has('')) ordered.push(sections.get(''));
+    els.pendingList.replaceChildren(...ordered);
+  }
+
+  function startDrag(x, y) {
+    const { li } = press;
+    press = null;
+    const rect = li.getBoundingClientRect();
+    const ghost = li.cloneNode(true);
+    ghost.classList.add('drag-ghost');
+    ghost.classList.remove('enter');
+    ghost.style.width = `${rect.width}px`;
+    document.body.append(ghost);
+    drag = { li, ghost, dx: x - rect.left, dy: y - rect.top, x, y };
+    li.classList.add('drag-src');
+    document.body.classList.add('dragging');
+    showDropZones();
+    if (navigator.vibrate) navigator.vibrate(15);
+    moveDrag(x, y);
+    drag.scroll = setInterval(autoScroll, 16);
+  }
+
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    drag.ghost.style.transform = `translate(${x - drag.dx}px, ${y - drag.dy}px)`;
+    const section = document.elementFromPoint(x, y)?.closest('#pendingList .period') || nearestSection(y);
+    for (const s of els.pendingList.querySelectorAll('.period')) s.classList.toggle('drop-target', s === section);
+    if (!section) return;
+    const ul = section.querySelector('.list');
+    const before = [...ul.children].find((c) => c !== drag.li && y < c.getBoundingClientRect().top + c.offsetHeight / 2);
+    if (before) {
+      if (drag.li.nextElementSibling !== before) ul.insertBefore(drag.li, before);
+    } else if (ul.lastElementChild !== drag.li) {
+      ul.append(drag.li);
+    }
+  }
+
+  // Fora de qualquer período (entre seções, nas bordas): usa o mais próximo na vertical
+  function nearestSection(y) {
+    const box = els.pendingList.getBoundingClientRect();
+    if (y < box.top - 40 || y > box.bottom + 40) return null;
+    let best = null;
+    let bestDist = Infinity;
+    for (const s of els.pendingList.querySelectorAll('.period')) {
+      const r = s.getBoundingClientRect();
+      const dist = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+      if (dist < bestDist) [best, bestDist] = [s, dist];
+    }
+    return best;
+  }
+
+  // Perto da borda de cima/baixo, a tela rola sozinha
+  function autoScroll() {
+    const edge = 56;
+    const step = drag.y < edge ? -(edge - drag.y) / 4 : drag.y > innerHeight - edge ? (drag.y - innerHeight + edge) / 4 : 0;
+    if (!step) return;
+    scrollBy(0, step);
+    moveDrag(drag.x, drag.y);
+  }
+
+  function endDrag(drop) {
+    clearInterval(drag.scroll);
+    drag.ghost.remove();
+    document.body.classList.remove('dragging');
+    const target = drag.li.closest('.period');
+    drag = null;
+    if (drop && target) {
+      // Nova ordem = ordem das tarefas na tela; o período vem da seção onde a tarefa ficou
+      const byId = new Map(tasks().map((t) => [t.id, t]));
+      const order = [];
+      for (const section of els.pendingList.querySelectorAll('.period')) {
+        for (const item of section.querySelectorAll('.task[data-id]')) {
+          const t = byId.get(item.dataset.id);
+          if (!t) continue;
+          if (item.classList.contains('drag-src')) t.period = section.dataset.period || null;
+          order.push(t);
+          byId.delete(t.id);
+        }
+      }
+      store[currentDate] = [...order, ...byId.values()];
+      save();
+    }
+    render();
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    if (drag) {
+      e.preventDefault();
+      return moveDrag(e.clientX, e.clientY);
+    }
+    if (!press || e.pointerId !== press.id) return;
+    const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+    if (press.touch) {
+      if (moved > 8) cancelPress(); // dedo andou antes de segurar: é rolagem
+    } else if (moved > 5) {
+      clearTimeout(press.timer);
+      startDrag(e.clientX, e.clientY);
+    }
+  });
+  document.addEventListener('pointerup', () => (drag ? endDrag(true) : cancelPress()));
+  document.addEventListener('pointercancel', () => (drag ? endDrag(false) : cancelPress()));
+  // Enquanto arrasta no celular, o dedo move a tarefa em vez de rolar a tela
+  document.addEventListener('touchmove', (e) => drag && e.preventDefault(), { passive: false });
+  document.addEventListener('contextmenu', (e) => (press || drag) && e.preventDefault());
+  document.addEventListener('keydown', (e) => {
+    if (drag && e.key === 'Escape') endDrag(false);
+  });
 
   function renderEmpty() {
     const list = tasks();
@@ -756,7 +897,9 @@
         const ul = document.createElement('ul');
         ul.className = 'list';
         ul.append(...items.map(buildItem));
-        return periodSection(p, ul);
+        const section = periodSection(p, ul);
+        section.dataset.period = p.id || '';
+        return section;
       });
     els.pendingList.replaceChildren(...groups);
     els.pendingCount.textContent = pending.length;
@@ -854,7 +997,7 @@
       TaskCalendar.invalidate();
       syncCalendar();
     }
-    if (!document.querySelector('.edit-input')) render();
+    if (!document.querySelector('.edit-input') && !drag) render();
   });
 
   // Clicar fora do card fecha as janelas
