@@ -25,6 +25,9 @@ window.TaskSync = (() => {
   let pushTimer = null;
   const changeListeners = [];
   const statusListeners = [];
+  // Resolve quando já se sabe se há conta conectada (e, havendo, depois da primeira leitura)
+  let authSettled;
+  const authKnown = client ? new Promise((resolve) => (authSettled = resolve)) : Promise.resolve();
 
   // ---------- localStorage ----------
   const read = (key, fallback) => {
@@ -137,7 +140,7 @@ window.TaskSync = (() => {
   // Evita duas leituras ao mesmo tempo (login + reconexão do tempo real)
   let pulling = null;
   function pull() {
-    if (!user) return Promise.resolve();
+    if (!user) return Promise.resolve(false);
     pulling ??= doPull().finally(() => (pulling = null));
     return pulling;
   }
@@ -145,7 +148,10 @@ window.TaskSync = (() => {
   async function doPull() {
     setStatus('syncing');
     const { data, error } = await client.from('taskon_state').select('key, value, updated_at');
-    if (error) return setStatus('error');
+    if (error) {
+      setStatus('error');
+      return false;
+    }
 
     const firstSync = read(OWNER_KEY, null) !== user.id;
     const changed = [];
@@ -188,6 +194,7 @@ window.TaskSync = (() => {
     notify(changed);
     if (dirty.size) await flush();
     else setStatus('ok');
+    return true;
   }
 
   function onRemoteRow(row) {
@@ -225,7 +232,11 @@ window.TaskSync = (() => {
   if (client) {
     client.auth.onAuthStateChange((_event, session) => {
       // Fora do callback, para não travar o cliente de autenticação
-      setTimeout(() => (session?.user ? start(session.user) : stop()), 0);
+      setTimeout(async () => {
+        if (session?.user) await start(session.user);
+        else stop();
+        authSettled();
+      }, 0);
     });
     window.addEventListener('online', () => pull());
     document.addEventListener('visibilitychange', () => {
@@ -237,6 +248,11 @@ window.TaskSync = (() => {
     get status() { return status; },
     get user() { return user; },
     push,
+    // true quando os dados deste aparelho estão em dia com a conta (ou não há conta conectada)
+    async fresh() {
+      await authKnown;
+      return user ? pull() : true;
+    },
     onChange: (fn) => changeListeners.push(fn),
     onStatus: (fn) => {
       statusListeners.push(fn);

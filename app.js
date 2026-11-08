@@ -220,6 +220,34 @@
     render();
   }
 
+  // ---------- Tarefas atrasadas ----------
+  // O que ficou sem concluir nos dias anteriores passa para hoje, marcado como atrasado
+  let lateCheckedOn = null;
+
+  function moveLateToToday(today) {
+    const moved = [];
+    for (const day of Object.keys(store).filter((d) => d < today).sort()) {
+      const pending = store[day].filter((t) => !t.done);
+      if (!pending.length) continue;
+      store[day] = store[day].filter((t) => t.done);
+      moved.push(...pending.map((t) => ({ ...t, lateFrom: t.lateFrom || day })));
+    }
+    if (!moved.length) return;
+    const existing = store[today] || [];
+    const ids = new Set(existing.map((t) => t.id));
+    store[today] = [...moved.filter((t) => !ids.has(t.id)), ...existing];
+    save();
+    if (!document.querySelector('.edit-input')) render();
+  }
+
+  // Só mexe depois de ler a conta: um aparelho desatualizado traria de volta o que já foi concluído
+  async function checkLateTasks() {
+    const today = todayKey();
+    if (lateCheckedOn === today || !(await TaskSync.fresh()) || drag) return;
+    lateCheckedOn = today;
+    moveLateToToday(today);
+  }
+
   function goTo(key) {
     if (!key) return;
     currentDate = key;
@@ -718,6 +746,13 @@
     checkbox.checked = task.done;
     checkbox.setAttribute('aria-label', task.done ? `Desmarcar "${task.text}"` : `Concluir "${task.text}"`);
     text.textContent = task.text;
+    if (task.lateFrom && !task.done) {
+      const tag = document.createElement('span');
+      tag.className = 'late-tag';
+      tag.textContent = 'Atrasada';
+      tag.title = `Era para ${shortLabel(task.lateFrom)}`;
+      text.append(tag);
+    }
 
     checkbox.addEventListener('change', () => toggleTask(task.id));
     li.querySelector('.delete').addEventListener('click', () => deleteTask(task.id));
@@ -1064,11 +1099,16 @@
     if (document.hidden) return;
     if (!document.querySelector('.edit-input')) render();
     syncCalendar();
+    checkLateTasks();
   });
 
   // A cada minuto: selo "Agora"; a agenda só é baixada de novo a cada 15 min
-  setInterval(() => syncCalendar(), 60 * 1000);
+  setInterval(() => {
+    syncCalendar();
+    checkLateTasks();
+  }, 60 * 1000);
 
   render();
   syncCalendar();
+  checkLateTasks();
 })();
