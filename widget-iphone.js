@@ -17,8 +17,15 @@ const LIMITS = { small: [4, 0], medium: [4, 4], large: [7, 7] }[family] || [1, 0
 async function load() {
   const req = new Request(API);
   req.headers = { 'x-widget-token': TOKEN };
-  const data = await req.loadJSON();
-  if (req.response.statusCode !== 200) throw new Error(data.error || 'Erro ao carregar');
+  const body = await req.loadString();
+  const status = req.response.statusCode;
+  let data;
+  try {
+    data = JSON.parse(body);
+  } catch {
+    throw new Error(`Resposta inválida (${status}): ${body.slice(0, 60)}`);
+  }
+  if (status !== 200) throw new Error(data.error || `Erro ${status}`);
   return data;
 }
 
@@ -133,7 +140,7 @@ function failure(message) {
   widget.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
   text(widget, 'TaskON', 14, C.blue, 'bold');
   widget.addSpacer(4);
-  text(widget, message, 12, C.muted).lineLimit = 3;
+  text(widget, message, 12, C.muted).lineLimit = 5;
   return widget;
 }
 
@@ -141,7 +148,7 @@ let widget;
 try {
   widget = build(await load());
 } catch (error) {
-  widget = failure('Sem conexão ou chave inválida. Toque para abrir o TaskON.');
+  widget = failure(error.message);
 }
 if (config.runsInWidget) Script.setWidget(widget);
 else await widget.presentLarge();
