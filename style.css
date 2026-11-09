@@ -796,3 +796,8 @@ body.dragging .task .actions { visibility: hidden; }
   color: var(--danger);
   background: var(--danger-soft);
 }
+
+/* Passos do widget do iPhone */
+.widget-steps { margin: 12px 0 0; padding-left: 20px; font-size: 14px; color: var(--text); display: grid; gap: 6px; }
+.widget-steps strong { color: var(--ink); }
+#widgetCode { margin-top: 12px; font-size: 11px; }

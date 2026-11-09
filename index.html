@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <main class="app">
@@ -158,6 +158,7 @@
       <input id="syncEmail" class="field" type="email" inputmode="email" autocomplete="email" placeholder="seu@email.com" aria-label="E-mail">
       <input id="syncLink" class="field" type="text" inputmode="url" spellcheck="false" placeholder="Cole aqui o link do e-mail" aria-label="Link de acesso do e-mail" hidden>
       <button type="button" class="btn primary wide" id="syncPair" hidden>Conectar celular (QR code)</button>
+      <button type="button" class="btn wide" id="syncWidget" hidden>Widget na Tela de Início</button>
       <div class="qr-box" id="syncQr" hidden><img id="syncQrImg" alt="QR code para conectar o celular"></div>
       <p class="dialog-note" id="syncNote" hidden></p>
       <div class="dialog-actions">
@@ -177,6 +178,25 @@
       <div class="dialog-actions">
         <button type="button" class="btn" id="scanEmail">Entrar por e-mail</button>
         <button value="cancel" class="btn">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog add-dialog" id="widgetDialog" aria-labelledby="widgetTitle">
+    <form method="dialog">
+      <h3 id="widgetTitle">Widget do iPhone</h3>
+      <ol class="widget-steps">
+        <li>Instale o app gratuito <strong>Scriptable</strong> na App Store.</li>
+        <li>Toque no botão abaixo para gerar e depois copiar o script.</li>
+        <li>No Scriptable, toque em <strong>+</strong>, cole o script e dê o nome <strong>TaskON</strong>.</li>
+        <li>Segure a Tela de Início, toque em <strong>Editar → Adicionar Widget → Scriptable</strong> e escolha o tamanho.</li>
+        <li>Segure o widget, toque em <strong>Editar Widget</strong> e em Script escolha <strong>TaskON</strong>.</li>
+      </ol>
+      <button type="button" class="btn primary wide" id="widgetGenerate">Gerar script</button>
+      <textarea id="widgetCode" rows="3" readonly spellcheck="false" aria-label="Script do widget" hidden></textarea>
+      <p class="dialog-note" id="widgetNote">Gerar de novo desativa o script anterior.</p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn">Fechar</button>
       </div>
     </form>
   </dialog>
@@ -204,8 +224,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-  <script src="sync.js?v=3"></script>
-  <script src="calendar.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="sync.js?v=4"></script>
+  <script src="calendar.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

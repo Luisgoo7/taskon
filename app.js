@@ -51,6 +51,11 @@
     syncClose: $('syncClose'),
     syncSubmit: $('syncSubmit'),
     syncPair: $('syncPair'),
+    syncWidget: $('syncWidget'),
+    widgetDialog: $('widgetDialog'),
+    widgetGenerate: $('widgetGenerate'),
+    widgetCode: $('widgetCode'),
+    widgetNote: $('widgetNote'),
     scanBtn: $('scanBtn'),
     scanDialog: $('scanDialog'),
     scanVideo: $('scanVideo'),
@@ -564,6 +569,7 @@
     els.syncSubmit.textContent = syncStep === 'link' ? 'Entrar' : 'Enviar link';
     els.syncLogout.hidden = !user;
     els.syncPair.hidden = !user;
+    els.syncWidget.hidden = !user || !TOUCH;
     if (!user) els.syncQr.hidden = true;
     els.syncText.textContent = user
       ? `Conectado como ${user.email}. Tudo o que você fizer aqui aparece no computador, no celular e no site.`
@@ -649,6 +655,54 @@
       syncMessage(`Não foi possível gerar o código: ${error.message}`, true);
     } finally {
       els.syncPair.disabled = false;
+    }
+  }
+
+  // ---------- Widget do iPhone (app Scriptable) ----------
+  function widgetNote(text, isError = false) {
+    els.widgetNote.textContent = text;
+    els.widgetNote.classList.toggle('error', isError);
+  }
+
+  function openWidgetDialog() {
+    els.widgetCode.value = '';
+    els.widgetCode.hidden = true;
+    els.widgetGenerate.textContent = 'Gerar script';
+    widgetNote('Gerar de novo desativa o script anterior.');
+    els.syncDialog.close();
+    els.widgetDialog.showModal();
+  }
+
+  // Dois toques: no iPhone só dá para copiar logo depois de um toque, sem esperar a rede
+  async function generateOrCopyWidget() {
+    if (els.widgetCode.value) {
+      try {
+        await navigator.clipboard.writeText(els.widgetCode.value);
+        widgetNote('Script copiado. Agora cole no Scriptable.');
+      } catch {
+        els.widgetCode.select();
+        widgetNote('Não deu para copiar sozinho: selecione o texto acima e copie.', true);
+      }
+      return;
+    }
+    els.widgetGenerate.disabled = true;
+    widgetNote('Gerando...');
+    try {
+      const [token, template] = await Promise.all([
+        TaskSync.widgetToken(),
+        fetch('widget-iphone.js', { cache: 'no-store' }).then((r) => {
+          if (!r.ok) throw new Error('sem conexão');
+          return r.text();
+        }),
+      ]);
+      els.widgetCode.value = template.replace('__TASKON_WIDGET_TOKEN__', token);
+      els.widgetCode.hidden = false;
+      els.widgetGenerate.textContent = 'Copiar script';
+      widgetNote('Pronto. Toque em "Copiar script". Esse texto dá acesso de leitura à sua agenda: não compartilhe.');
+    } catch (error) {
+      widgetNote(`Não foi possível gerar: ${error.message}`, true);
+    } finally {
+      els.widgetGenerate.disabled = false;
     }
   }
 
@@ -991,6 +1045,8 @@
   els.syncBtn.addEventListener('click', openSyncDialog);
   els.syncClose.addEventListener('click', () => els.syncDialog.close());
   els.syncPair.addEventListener('click', showPairingQr);
+  els.syncWidget.addEventListener('click', openWidgetDialog);
+  els.widgetGenerate.addEventListener('click', generateOrCopyWidget);
   els.scanBtn.addEventListener('click', openScanner);
   els.scanDialog.addEventListener('close', stopCamera);
   els.scanEmail.addEventListener('click', () => {
@@ -1049,7 +1105,7 @@
   });
 
   // Clicar fora do card fecha as janelas
-  for (const dialog of [els.addDialog, els.calDialog, els.linkDialog, els.syncDialog, els.scanDialog]) {
+  for (const dialog of [els.addDialog, els.calDialog, els.linkDialog, els.syncDialog, els.scanDialog, els.widgetDialog]) {
     dialog.addEventListener('click', (e) => {
       if (e.target === dialog) dialog.close();
     });

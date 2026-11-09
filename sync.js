@@ -229,6 +229,17 @@ window.TaskSync = (() => {
     setStatus('off');
   }
 
+  async function callFunction(name) {
+    const token = (await client.auth.getSession()).data.session?.access_token;
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_KEY },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Não foi possível concluir');
+    return data;
+  }
+
   if (client) {
     client.auth.onAuthStateChange((_event, session) => {
       // Fora do callback, para não travar o cliente de autenticação
@@ -268,16 +279,9 @@ window.TaskSync = (() => {
     signOut: () => client.auth.signOut({ scope: 'local' }),
     icsEndpoint: ICS_FUNCTION,
     // Link de acesso de uso único para conectar outro aparelho sem e-mail (vira QR code)
-    async deviceLink() {
-      const token = (await client.auth.getSession()).data.session?.access_token;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/device-link`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_KEY },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.link) throw new Error(data.error || 'Não foi possível gerar o código');
-      return data.link;
-    },
+    deviceLink: async () => (await callFunction('device-link')).link,
+    // Chave de leitura do widget do iPhone (a anterior deixa de funcionar)
+    widgetToken: async () => (await callFunction('widget')).token,
     async accessToken() {
       return client ? (await client.auth.getSession()).data.session?.access_token : null;
     },
