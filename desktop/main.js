@@ -1,6 +1,7 @@
 // Widget de desktop do TaskON: uma bolinha fixa no canto superior direito,
 // sempre por cima das outras janelas. Clicar nela abre/fecha o app completo.
 const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog } = require('electron');
+const { execFile } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -195,13 +196,45 @@ const toggle = () => setOpen(!panel.isVisible());
 // No modo de desenvolvimento o Windows precisa saber qual pasta abrir
 const loginOptions = app.isPackaged ? {} : { path: process.execPath, args: [app.getAppPath()] };
 
-// Inicia com o Windows por padrão; só deixa de iniciar se a opção for desmarcada no menu
+// Fica sempre ligado por padrão; só deixa de abrir se a opção for desmarcada no menu.
+// Além da entrada de login, a tarefa agendada "TaskON" roda o vigia.vbs a cada minuto e
+// reabre o widget se ele tiver fechado (a suspensão do PC não passa pelo login).
+const TASK_NAME = 'TaskON';
 const autostartOffFile = () => path.join(app.getPath('userData'), 'autostart-off');
+
+function taskXml() {
+  const user = `${process.env.USERDOMAIN}\\${process.env.USERNAME}`;
+  return `<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <Triggers>
+    <TimeTrigger>
+      <StartBoundary>2026-01-01T00:00:00</StartBoundary>
+      <Repetition><Interval>PT1M</Interval></Repetition>
+    </TimeTrigger>
+  </Triggers>
+  <Principals><Principal><UserId>${user}</UserId><LogonType>InteractiveToken</LogonType></Principal></Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <ExecutionTimeLimit>PT1M</ExecutionTimeLimit>
+  </Settings>
+  <Actions><Exec><Command>wscript.exe</Command><Arguments>"${path.join(__dirname, 'vigia.vbs')}"</Arguments></Exec></Actions>
+</Task>`;
+}
 
 function setAutostart(on) {
   app.setLoginItemSettings({ ...loginOptions, openAtLogin: on });
-  if (on) fs.rmSync(autostartOffFile(), { force: true });
-  else fs.writeFileSync(autostartOffFile(), '');
+  if (on) {
+    fs.rmSync(autostartOffFile(), { force: true });
+    const xmlFile = path.join(app.getPath('userData'), 'tarefa.xml');
+    fs.writeFileSync(xmlFile, `﻿${taskXml()}`, 'utf16le');
+    execFile('schtasks', ['/create', '/tn', TASK_NAME, '/xml', xmlFile, '/f'], { windowsHide: true });
+  } else {
+    fs.writeFileSync(autostartOffFile(), '');
+    execFile('schtasks', ['/delete', '/tn', TASK_NAME, '/f'], { windowsHide: true });
+  }
 }
 
 function showMenu() {
@@ -224,8 +257,10 @@ function showMenu() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  // Abrir o TaskON de novo só abre/fecha o painel
-  app.on('second-instance', () => toggle());
+  // Abrir o TaskON de novo só abre/fecha o painel (o vigia só confere se está aberto)
+  app.on('second-instance', (e, argv) => {
+    if (!argv.includes('--vigia')) toggle();
+  });
 
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
