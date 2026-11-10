@@ -26,8 +26,8 @@ const F = {
 };
 
 const family = config.widgetFamily || 'large';
-// [reuniões, tarefas] que cabem em cada tamanho
-const LIMITS = { small: [3, 0], medium: [3, 4], large: [5, 6] }[family] || [1, 0];
+// [reuniões, tarefas] que cabem em cada tamanho (o médio calcula pela altura)
+const LIMITS = { small: [3, 0], large: [5, 6] }[family] || [1, 0];
 
 async function load() {
   const req = new Request(API);
@@ -54,20 +54,32 @@ function text(parent, value, font, color, lines = 1) {
   return t;
 }
 
-function symbol(parent, name, size, color) {
+function symbol(parent, name, size, color, font = Font.mediumSystemFont(size)) {
   const sf = SFSymbol.named(name);
-  sf.applyFont(Font.mediumSystemFont(size));
+  sf.applyFont(font);
   const img = parent.addImage(sf.image);
   img.imageSize = new Size(size, size);
   img.tintColor = color;
   return img;
 }
 
+// Logo do app: check branco dentro do quadrado azul
+function logo(parent) {
+  const box = parent.addStack();
+  box.size = new Size(18, 18);
+  box.backgroundColor = C.blue;
+  box.cornerRadius = 5;
+  box.centerAlignContent();
+  box.addSpacer();
+  symbol(box, 'checkmark', 10, Color.white(), Font.heavySystemFont(10));
+  box.addSpacer();
+}
+
 function header(widget) {
   const row = widget.addStack();
   row.centerAlignContent();
-  symbol(row, 'checkmark.square.fill', 17, C.blue);
-  row.addSpacer(6);
+  logo(row);
+  row.addSpacer(7);
   const brand = row.addStack();
   text(brand, 'Task', F.brand, C.ink);
   text(brand, 'ON', F.brand, C.blueText);
@@ -78,7 +90,7 @@ function header(widget) {
     df.dateFormat = "EEE, d 'de' MMM";
     text(row, df.string(new Date()), F.date, C.muted);
   }
-  widget.addSpacer(10);
+  widget.addSpacer(family === 'medium' ? 7 : 10);
 }
 
 function label(parent, value, color = C.muted) {
@@ -86,12 +98,13 @@ function label(parent, value, color = C.muted) {
   parent.addSpacer(5);
 }
 
-function eventRow(parent, ev) {
+// compact: versão mais baixa, para a lista única do widget médio (marca "amanhã" na própria linha)
+function eventRow(parent, ev, compact = false) {
   const row = parent.addStack();
   row.centerAlignContent();
   row.backgroundColor = C.row;
   row.cornerRadius = 8;
-  row.setPadding(5, 0, 5, 8);
+  row.setPadding(compact ? 3 : 5, 0, compact ? 3 : 5, 8);
 
   const bar = row.addStack();
   bar.size = new Size(3, 16);
@@ -104,6 +117,29 @@ function eventRow(parent, ev) {
   row.addSpacer(7);
   text(row, ev.title, F.item, C.ink).minimumScaleFactor = 0.85;
   row.addSpacer();
+  if (compact && ev.day === 'amanha') {
+    row.addSpacer(6);
+    text(row, 'amanhã', F.label, C.muted);
+  }
+  parent.addSpacer(compact ? 3 : 4);
+}
+
+function holidayRow(parent, holiday) {
+  const row = parent.addStack();
+  row.centerAlignContent();
+  symbol(row, 'flag.fill', 10, C.danger);
+  row.addSpacer(5);
+  text(row, holiday.title, F.note, C.danger);
+  parent.addSpacer(5);
+}
+
+function taskRow(parent, task) {
+  const row = parent.addStack();
+  row.centerAlignContent();
+  symbol(row, task.late ? 'exclamationmark.circle.fill' : 'circle', 12, task.late ? C.danger : C.muted);
+  row.addSpacer(7);
+  text(row, task.text, F.item, task.late ? C.ink : C.text).minimumScaleFactor = 0.85;
+  row.addSpacer();
   parent.addSpacer(4);
 }
 
@@ -114,14 +150,7 @@ function eventsBlock(parent, data, max) {
   let left = max;
 
   label(parent, 'Hoje', C.blueText);
-  if (holiday) {
-    const row = parent.addStack();
-    row.centerAlignContent();
-    symbol(row, 'flag.fill', 10, C.danger);
-    row.addSpacer(5);
-    text(row, holiday.title, F.note, C.danger);
-    parent.addSpacer(5);
-  }
+  if (holiday) holidayRow(parent, holiday);
   if (!today.length) {
     text(parent, data.calendarError ? 'Agenda indisponível' : 'Agenda livre', F.note, C.muted);
     parent.addSpacer(6);
@@ -142,17 +171,40 @@ function tasksBlock(parent, data, max) {
     text(parent, 'Tudo em dia', F.note, C.muted);
     return;
   }
-  data.tasks.slice(0, max).forEach((task) => {
-    const row = parent.addStack();
-    row.centerAlignContent();
-    symbol(row, task.late ? 'exclamationmark.circle.fill' : 'circle', 12, task.late ? C.danger : C.muted);
-    row.addSpacer(7);
-    text(row, task.text, F.item, task.late ? C.ink : C.text).minimumScaleFactor = 0.85;
-    row.addSpacer();
-    parent.addSpacer(5);
-  });
+  data.tasks.slice(0, max).forEach((task) => taskRow(parent, task));
   const rest = data.taskCount - Math.min(max, data.tasks.length);
   if (rest > 0) text(parent, `+ ${rest} ${rest === 1 ? 'tarefa' : 'tarefas'}`, F.note, C.muted);
+}
+
+// Widget médio: uma coluna só, reuniões e depois tarefas, no que couber na altura
+function compactList(widget, data) {
+  const ROOM = 104; // altura útil abaixo do cabeçalho, em pontos
+  const EVENT_H = 24;
+  const TASK_H = 19;
+  const holiday = data.allDay.find((r) => r.day === 'hoje');
+  let room = ROOM - (holiday ? 20 : 0);
+  if (holiday) holidayRow(widget, holiday);
+
+  // Garante lugar para até 2 tarefas; o resto vai para as reuniões
+  const reserved = Math.min(data.tasks.length, 2) * TASK_H;
+  const events = data.events.slice(0, Math.max(0, Math.floor((room - reserved) / EVENT_H)));
+  if (!data.events.length) {
+    text(widget, data.calendarError ? 'Agenda indisponível' : 'Agenda livre', F.note, C.muted);
+    widget.addSpacer(5);
+    room -= 20;
+  }
+  events.forEach((ev) => eventRow(widget, ev, true));
+  room -= events.length * EVENT_H;
+
+  if (events.length && data.tasks.length) widget.addSpacer(3);
+  // Se nem todas cabem, a última linha vira o aviso "+ N tarefas"
+  let fit = Math.max(0, Math.floor(room / TASK_H));
+  if (data.taskCount > fit && fit > 1) fit -= 1;
+  const tasks = data.tasks.slice(0, fit);
+  tasks.forEach((task) => taskRow(widget, task));
+  const rest = data.taskCount - tasks.length;
+  if (!data.taskCount && data.events.length) text(widget, 'Nenhuma tarefa pendente', F.note, C.muted);
+  else if (rest > 0 && tasks.length) text(widget, `+ ${rest} ${rest === 1 ? 'tarefa' : 'tarefas'}`, F.label, C.muted);
 }
 
 // ---------- Montagem ----------
@@ -174,21 +226,13 @@ function build(data) {
   gradient.colors = [C.top, C.bottom];
   gradient.locations = [0, 1];
   widget.backgroundGradient = gradient;
-  widget.setPadding(14, 14, 12, 14);
+  if (family === 'medium') widget.setPadding(12, 14, 10, 14);
+  else widget.setPadding(14, 14, 12, 14);
 
   header(widget);
   const [maxEvents, maxTasks] = LIMITS;
   if (family === 'medium') {
-    const columns = widget.addStack();
-    columns.topAlignContent();
-    const left = columns.addStack();
-    left.layoutVertically();
-    eventsBlock(left, data, maxEvents);
-    columns.addSpacer(12);
-    const right = columns.addStack();
-    right.layoutVertically();
-    right.size = new Size(118, 0);
-    tasksBlock(right, data, maxTasks);
+    compactList(widget, data);
   } else {
     eventsBlock(widget, data, maxEvents);
     if (maxTasks) {
