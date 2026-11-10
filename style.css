@@ -359,15 +359,6 @@ h2 {
 
 .agenda-msg { margin: 0; padding: 6px 0 12px; color: var(--muted); }
 .agenda-msg.error { color: var(--danger); }
-.agenda-cta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 4px 0 12px;
-  color: var(--muted);
-}
 .btn {
   padding: 10px 18px;
   border-radius: 99px;
@@ -397,70 +388,52 @@ h2 {
   color: var(--muted);
 }
 .period-title svg { width: 17px; height: 17px; color: var(--blue-text); }
-.events { list-style: none; margin: 0; padding: 0 0 6px; display: grid; gap: 10px; }
-
-.event {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(59, 116, 255, .07);
-  border: 1px solid rgba(59, 116, 255, .18);
-  position: relative;
-  transition: opacity .2s;
+/* Reunião dentro de Pendentes: uma linha fina */
+.meeting { display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 2px 0; font-size: 16px; }
+.meeting-time {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--blue-text);
+  font-variant-numeric: tabular-nums;
 }
-.event::before {
+.meeting.live .meeting-time { color: var(--green); }
+.meeting.live .meeting-time::before {
   content: "";
-  position: absolute;
-  left: 0; top: 14px; bottom: 14px;
-  width: 4px;
-  border-radius: 0 4px 4px 0;
-  background: var(--blue);
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  vertical-align: 2px;
 }
-.event .check { margin-top: 1px; }
-.event-body { flex: 1; min-width: 0; }
-.event-time { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--blue-text); }
-.now {
-  padding: 2px 8px;
-  border-radius: 99px;
-  background: var(--blue);
-  color: #fff;
-  font-size: 11px;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.event-title { margin-top: 2px; font-size: 17px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
-.event-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+.meeting-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .join {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 14px 7px 12px;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 4px 11px 4px 9px;
   border-radius: 99px;
-  background: var(--blue);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+  background: var(--blue-soft);
+  color: var(--blue-text);
+  font-size: 13px;
+  font-weight: 700;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(59, 116, 255, .35);
-  transition: background .15s, transform .1s;
+  transition: background .15s, color .15s;
 }
-.join:hover { background: var(--blue-hover); }
-.join:active { transform: scale(.97); }
-.join svg { width: 18px; height: 18px; }
-.join-short { display: none; }
-.time-end:not([hidden])::before { content: " – "; }
-.event-meta .edit-link { width: 32px; height: 32px; margin-left: -8px; }
-.event-meta .edit-link svg { width: 17px; height: 17px; }
-.place { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
-.place svg { width: 16px; height: 16px; flex-shrink: 0; }
-
-.event.done { opacity: .6; background: var(--surface-2); border-color: var(--line); }
-.event.done::before { background: var(--faint); }
-.event.done .event-time { color: var(--muted); }
-.event.done .event-title { color: var(--faint); text-decoration: line-through; }
-.event.done .event-meta { display: none; }
+.join:hover { background: var(--blue); color: #fff; }
+.join svg { width: 15px; height: 15px; }
+/* O lápis só aparece ao passar o mouse, para não roubar espaço do título */
+.meeting .edit-link { display: none; flex-shrink: 0; margin-left: -8px; }
+@media (hover: hover) {
+  .meeting:hover .edit-link:not([hidden]), .meeting .edit-link:focus-visible { display: grid; }
+}
+.meeting.done .meeting-time, .meeting.done .meeting-title { color: var(--faint); }
+.meeting.done .meeting-title { text-decoration: line-through; text-decoration-color: var(--faint); }
+.meeting.done .join, .meeting.done .edit-link { display: none; }
 
 /* Janelas flutuantes */
 .dialog {
@@ -641,8 +614,6 @@ h2 {
   .fab { width: 60px; height: 60px; bottom: 24px; }
   .reminders { margin-top: 22px; }
   .chip { padding: 6px 10px; font-size: 13px; }
-  .event { gap: 14px; padding: 12px 14px; }
-  .event-title { font-size: 16px; }
   .dialog > form { padding: 22px; }
 }
 
@@ -695,8 +666,7 @@ h2 {
   .status-icon.filled svg, .status-icon.cal svg { width: 14px; height: 14px; }
   .badge { min-width: 24px; height: 24px; padding: 0 7px; font-size: 13px; }
   .link-btn { font-size: 12.5px; padding: 4px 8px; }
-  .empty, .agenda-msg, .agenda-cta { font-size: 14px; padding: 4px 0 8px; }
-  .agenda-cta .btn { padding: 7px 14px; font-size: 13.5px; }
+  .empty, .agenda-msg { font-size: 14px; padding: 4px 0 8px; }
 
   .period + .period { margin-top: 2px; }
   .period-title { margin: 6px 0 4px; font-size: 11px; gap: 6px; }
@@ -710,39 +680,11 @@ h2 {
   .icon-btn svg { width: 17px; height: 17px; }
   .actions { gap: 0; }
 
-  /* Reunião em uma linha: horário | título (e local) | botão curto */
-  .events { gap: 6px; padding-bottom: 4px; }
-  .event { align-items: center; gap: 10px; padding: 7px 10px 7px 12px; border-radius: 12px; }
-  .event::before { top: 8px; bottom: 8px; width: 3px; }
-  .event .check { margin-top: 0; }
-  .event-body {
-    display: grid;
-    grid-template-columns: 38px minmax(0, 1fr) auto auto;
-    align-items: center;
-    column-gap: 10px;
-  }
-  .event-time {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    font-size: 12px;
-    line-height: 1.15;
-  }
-  .event-time .time { display: flex; flex-direction: column; }
-  .time-end { font-weight: 500; opacity: .75; }
-  .time-end:not([hidden])::before { content: none; }
-  .now { padding: 1px 5px; font-size: 9px; }
-  .event-title { grid-column: 2; grid-row: 1; margin: 0; font-size: 14px; line-height: 1.3; }
-  .event-meta { display: contents; }
-  .place { grid-column: 2; grid-row: 2; font-size: 12px; }
-  .place svg { width: 13px; height: 13px; }
-  .join { grid-column: 3; grid-row: 1 / span 2; padding: 5px 10px 5px 8px; font-size: 12px; gap: 5px; box-shadow: none; }
-  .join svg { width: 14px; height: 14px; }
-  .join-label { display: none; }
-  .join-short { display: inline; }
-  .event-meta .edit-link { grid-column: 4; grid-row: 1 / span 2; width: 28px; height: 28px; margin: 0; }
+  /* Reunião: mesma altura de uma tarefa */
+  .meeting { min-height: 36px; padding: 1px 0; gap: 12px; font-size: 14.5px; }
+  .meeting-time { min-width: 38px; font-size: 12px; }
+  .join { padding: 3px 9px 3px 7px; font-size: 12px; }
+  .join svg { width: 13px; height: 13px; }
 
   .fab { width: 52px; height: 52px; bottom: 18px; right: 16px; }
   .fab svg { width: 26px; height: 26px; }

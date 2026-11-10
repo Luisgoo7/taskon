@@ -73,9 +73,7 @@
     clearDone: $('clearDone'),
     tpl: $('taskTpl'),
     reminders: $('reminders'),
-    agendaCount: $('agendaCount'),
     agendaSettings: $('agendaSettings'),
-    agendaBody: $('agendaBody'),
     eventTpl: $('eventTpl'),
     calDialog: $('calDialog'),
     calUrls: $('calUrls'),
@@ -93,7 +91,6 @@
   let composerPeriod = 'manha';
   let composerDate = currentDate;
   let linkTarget = null;
-  let agendaLoaded = false;
 
   function loadJSON(key) {
     try {
@@ -392,8 +389,7 @@
 
   async function syncCalendar(force = false) {
     await TaskCalendar.refresh(force);
-    agendaLoaded = true;
-    renderAgenda();
+    refresh();
   }
 
   function toggleEvent(id) {
@@ -401,7 +397,7 @@
     else eventsDone[id] = Date.now();
     saveJSON(EVENTS_DONE_KEY, eventsDone);
     TaskSync.push(EVENTS_DONE_KEY);
-    renderAgenda();
+    render();
   }
 
   function openCalDialog() {
@@ -442,6 +438,7 @@
     return div;
   }
 
+  // Reunião dentro de Pendentes, em uma linha: horário, título, botão curto de entrar
   function buildEvent(ev, dayStart) {
     const li = els.eventTpl.content.firstElementChild.cloneNode(true);
     const done = Boolean(eventsDone[ev.id]);
@@ -449,19 +446,18 @@
     const now = new Date();
 
     li.classList.toggle('done', done);
+    li.classList.toggle('live', !done && ev.start <= now && now < ev.end);
     checkbox.checked = done;
     checkbox.setAttribute('aria-label', `${done ? 'Desmarcar' : 'Marcar como cumprido'}: ${ev.title}`);
     checkbox.addEventListener('change', () => toggleEvent(ev.id));
 
-    // Início e fim separados: no celular ficam um embaixo do outro
-    const [start, end] = ev.start < dayStart
-      ? ['Até', fmtTime(ev.end)]
-      : [fmtTime(ev.start), ev.end > ev.start ? fmtTime(ev.end) : ''];
-    li.querySelector('.time-start').textContent = start;
-    li.querySelector('.time-end').textContent = end;
-    li.querySelector('.time-end').hidden = !end;
-    li.querySelector('.now').hidden = done || !(ev.start <= now && now < ev.end);
-    li.querySelector('.event-title').textContent = ev.title;
+    // Começou no dia anterior: mostra até quando vai
+    const startedBefore = ev.start < dayStart;
+    li.querySelector('.meeting-time').textContent = startedBefore ? `até ${fmtTime(ev.end)}` : fmtTime(ev.start);
+    const title = li.querySelector('.meeting-title');
+    title.textContent = ev.title;
+    const range = !startedBefore && ev.end > ev.start ? `${fmtTime(ev.start)} – ${fmtTime(ev.end)}` : '';
+    title.title = [ev.title, range, ev.place].filter(Boolean).join(' · ');
 
     // Link da agenda → link colocado à mão → Meet padrão (só para reuniões; aulas ficam sem botão)
     const custom = eventLinks[ev.uid];
@@ -472,22 +468,13 @@
     join.hidden = !link;
     if (link) {
       join.href = link.url;
-      join.querySelector('.join-label').textContent = link.provider ? `Entrar no ${link.provider}` : 'Abrir link';
-      // Versão curta para o celular ("Meet", "Zoom", "Teams"...)
-      join.querySelector('.join-short').textContent = link.provider ? link.provider.replace('Google ', '') : 'Abrir';
+      join.title = link.provider ? `Entrar no ${link.provider}` : 'Abrir link';
+      join.querySelector('.join-label').textContent = link.provider ? link.provider.replace('Google ', '') : 'Link';
     }
     // Sem link próprio na agenda: o lápis permite trocar pelo link certo da reunião
     const editLink = li.querySelector('.edit-link');
     editLink.hidden = Boolean(ev.link) || !link;
     editLink.addEventListener('click', () => openLinkDialog(ev));
-
-    const place = li.querySelector('.place');
-    if (ev.place) {
-      place.innerHTML = icon('pin');
-      place.append(ev.place);
-      place.hidden = false;
-    }
-    li.querySelector('.event-meta').hidden = !link && !ev.place;
     return li;
   }
 
@@ -505,45 +492,12 @@
     else delete eventLinks[linkTarget];
     saveJSON(EVENT_LINKS_KEY, eventLinks);
     TaskSync.push(EVENT_LINKS_KEY);
-    renderAgenda();
+    render();
   }
 
-  function renderAgenda() {
-    const { reminders, events } = TaskCalendar.getDay(currentDate);
-    els.reminders.replaceChildren(...reminders.map(buildReminder));
-
-    if (!TaskCalendar.connected) {
-      const cta = document.createElement('div');
-      cta.className = 'agenda-cta';
-      cta.innerHTML = '<span>Veja suas reuniões aqui, separadas por manhã, tarde e noite.</span>';
-      const btn = document.createElement('button');
-      btn.className = 'btn primary';
-      btn.textContent = 'Conectar agenda';
-      btn.addEventListener('click', openCalDialog);
-      cta.append(btn);
-      els.agendaBody.replaceChildren(cta);
-      els.agendaCount.hidden = true;
-      return;
-    }
-
-    const parts = [];
-    if (TaskCalendar.error) parts.push(message(TaskCalendar.error, 'error'));
-    if (!agendaLoaded) parts.push(message('Carregando agenda...'));
-    else if (!events.length && !TaskCalendar.error) parts.push(message('Nenhum compromisso neste dia.'));
-
-    const dayStart = fromKey(currentDate);
-    for (const period of PERIODS) {
-      const list = events.filter((ev) => periodOf(ev, dayStart) === period);
-      if (!list.length) continue;
-      const ul = document.createElement('ul');
-      ul.className = 'events';
-      ul.append(...list.map((ev) => buildEvent(ev, dayStart)));
-      parts.push(periodSection(period, ul));
-    }
-
-    els.agendaCount.hidden = !events.length;
-    els.agendaCount.textContent = events.filter((ev) => !eventsDone[ev.id]).length;
-    els.agendaBody.replaceChildren(...parts);
+  // Redesenha sem atrapalhar uma edição em andamento (atualizações automáticas)
+  function refresh() {
+    if (!document.querySelector('.edit-input')) render();
   }
 
   // ---------- Sincronização entre aparelhos ----------
@@ -969,11 +923,9 @@
     if (drag && e.key === 'Escape') endDrag(false);
   });
 
-  function renderEmpty() {
-    const list = tasks();
-    const hasPending = list.some((t) => !t.done);
-    els.pendingEmpty.hidden = hasPending;
-    els.pendingEmpty.textContent = list.length
+  function renderEmpty(pendingCount, total) {
+    els.pendingEmpty.hidden = pendingCount > 0;
+    els.pendingEmpty.textContent = total
       ? 'Tudo concluído! Bom trabalho.'
       : 'Nenhuma tarefa por aqui. Toque no + para adicionar.';
   }
@@ -983,35 +935,50 @@
     cancelPress();
     const list = tasks();
     const pending = list.filter((t) => !t.done);
-    const done = list.filter((t) => t.done).sort((a, b) => b.doneAt - a.doneAt);
+    const done = list.filter((t) => t.done);
+    const { reminders, events } = TaskCalendar.getDay(currentDate);
+    const dayStart = fromKey(currentDate);
+    const pendingEvents = events.filter((ev) => !eventsDone[ev.id]);
+    const doneEvents = events.filter((ev) => eventsDone[ev.id]);
 
     els.greeting.textContent = greeting();
     els.dateText.textContent = dateLabel(currentDate);
     els.datePicker.value = currentDate;
     els.todayBtn.hidden = currentDate === todayKey();
+    els.reminders.replaceChildren(...reminders.map(buildReminder));
 
-    // Pendentes separadas por período (tarefas antigas, sem período, ficam à parte)
+    // Pendentes por período: primeiro as reuniões (pelo horário), depois as tarefas.
+    // Tarefas antigas, sem período, ficam à parte.
     const known = (t) => PERIODS.some((p) => p.id === t.period);
     const groups = [...PERIODS, { id: null, name: 'Sem período', icon: 'clock' }]
-      .map((p) => ({ p, items: pending.filter((t) => (p.id ? t.period === p.id : !known(t))) }))
-      .filter((g) => g.items.length)
-      .map(({ p, items }) => {
+      .map((p) => ({
+        p,
+        meetings: p.id ? pendingEvents.filter((ev) => periodOf(ev, dayStart).id === p.id) : [],
+        items: pending.filter((t) => (p.id ? t.period === p.id : !known(t))),
+      }))
+      .filter((g) => g.meetings.length || g.items.length)
+      .map(({ p, meetings, items }) => {
         const ul = document.createElement('ul');
         ul.className = 'list';
-        ul.append(...items.map(buildItem));
+        ul.append(...meetings.map((ev) => buildEvent(ev, dayStart)), ...items.map(buildItem));
         const section = periodSection(p, ul);
         section.dataset.period = p.id || '';
         return section;
       });
-    els.pendingList.replaceChildren(...groups);
-    els.pendingCount.textContent = pending.length;
-    renderEmpty();
+    const agendaError = TaskCalendar.connected && TaskCalendar.error ? [message(TaskCalendar.error, 'error')] : [];
+    els.pendingList.replaceChildren(...agendaError, ...groups);
+    const pendingCount = pending.length + pendingEvents.length;
+    els.pendingCount.textContent = pendingCount;
+    renderEmpty(pendingCount, list.length + events.length);
 
-    els.doneList.replaceChildren(...done.map(buildItem));
-    els.doneCount.textContent = done.length;
-    els.doneGroup.hidden = done.length === 0;
-
-    renderAgenda();
+    // Concluídas: tarefas e reuniões, a mais recente primeiro
+    const finished = [
+      ...done.map((t) => ({ at: t.doneAt, el: buildItem(t) })),
+      ...doneEvents.map((ev) => ({ at: eventsDone[ev.id], el: buildEvent(ev, dayStart) })),
+    ].sort((a, b) => b.at - a.at);
+    els.doneList.replaceChildren(...finished.map((f) => f.el));
+    els.doneCount.textContent = finished.length;
+    els.doneGroup.hidden = finished.length === 0;
   }
 
   // ---------- Eventos ----------
@@ -1124,8 +1091,7 @@
     const urls = els.calUrls.value.split(/\s+/).filter(Boolean);
     TaskCalendar.setUrls(urls);
     TaskSync.push('taskon:calendars');
-    agendaLoaded = false;
-    renderAgenda();
+    render();
     syncCalendar(true);
   });
 
