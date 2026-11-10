@@ -622,7 +622,7 @@
     els.widgetCode.value = '';
     els.widgetCode.hidden = true;
     els.widgetGenerate.textContent = 'Gerar script';
-    widgetNote('Gerar de novo desativa o script anterior.');
+    widgetNote('Pode gerar quantas vezes precisar: scripts antigos continuam funcionando.');
     els.syncDialog.close();
     els.widgetDialog.showModal();
   }
